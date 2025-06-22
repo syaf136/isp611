@@ -17,6 +17,7 @@ if uploaded_file:
 
     # User input for ACO
     start_node = st.selectbox("Start from", nodes, index=0)
+    end_node = st.selectbox("End at", nodes, index=1)
     n_ants = st.slider("Number of Ants", 5, 50, 10)
     n_iterations = st.slider("Number of Iterations", 10, 100, 50)
     alpha = st.slider("Alpha (pheromone importance)", 0.1, 5.0, 1.0)
@@ -46,11 +47,16 @@ if uploaded_file:
             all_paths = []
             all_costs = []
             for ant in range(n_ants):
-                path = [nodes.index(start_node)]
-                while len(path) < n_nodes:
+                start_index = nodes.index(start_node)
+                end_index = nodes.index(end_node)
+                path = [start_index]
+                while path[-1] != end_index:
                     next_node = select_next_node(path, path[-1])
+                    if next_node in path:  # avoid loops
+                        break
                     path.append(next_node)
-                path.append(path[0])  # return to start
+                if path[-1] != end_index:
+                    continue
                 cost = sum(dist[path[i]][path[i + 1]] for i in range(len(path) - 1))
                 all_paths.append(path)
                 all_costs.append(cost)
