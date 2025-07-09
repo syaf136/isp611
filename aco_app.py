@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pydeck as pdk
+import random
 
 # --- Load Predefined Files ---
 @st.cache_data
@@ -13,11 +14,16 @@ def load_data():
 
 # --- ACO Algorithm ---
 def run_aco(distance_matrix, nodes, start_node, end_node, n_ants, n_iterations, alpha, beta, evaporation, pheromone_constant):
+    import random
+    random.seed(42)
+    np.random.seed(42)
+
     n_nodes = len(nodes)
     dist = distance_matrix.values
     pheromone = np.ones((n_nodes, n_nodes))
     best_cost = float("inf")
     best_path = []
+
 
     def select_next_node(visited, current):
         probabilities = []
