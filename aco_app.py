@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import pydeck as pdk
 import random
-import matplotlib.pyplot as plt
 
 # --- Load Predefined Files ---
 @st.cache_data
@@ -24,7 +23,6 @@ def run_aco(distance_matrix, nodes, start_node, end_node, n_ants, n_iterations, 
     pheromone = np.ones((n_nodes, n_nodes))
     best_cost = float("inf")
     best_path = []
-    best_cost_history = []
 
     def select_next_node(visited, current):
         probabilities = []
@@ -40,6 +38,7 @@ def run_aco(distance_matrix, nodes, start_node, end_node, n_ants, n_iterations, 
             probabilities = [p / total for p in probabilities]
             return np.random.choice(range(n_nodes), p=probabilities)
         else:
+            # Fallback: pick random unvisited node
             unvisited = [j for j in range(n_nodes) if j not in visited]
             return random.choice(unvisited) if unvisited else current
 
@@ -64,30 +63,27 @@ def run_aco(distance_matrix, nodes, start_node, end_node, n_ants, n_iterations, 
                 no_improve_count = 0
             else:
                 no_improve_count += 1
-
         pheromone *= (1 - evaporation)
         for i in range(len(best_path) - 1):
             pheromone[best_path[i]][best_path[i + 1]] += pheromone_constant / best_cost
 
-        best_cost_history.append(best_cost)
-
         if early_stopping and no_improve_count >= max_no_improve:
             break
 
-    return [nodes[i] for i in best_path], round(best_cost, 3), best_cost_history
+    return [nodes[i] for i in best_path], round(best_cost, 3)
 
 # --- UI ---
 st.set_page_config(layout="wide")
-st.title("\ud83d\udccd UiTM Shah Alam Navigation Optimizer")
+st.title("📍 UiTM Shah Alam Navigation Optimizer")
 
 # Load data
 distance_matrix, coords_dict, node_list = load_data()
 
 # Inputs
-start_node = st.selectbox("\ud83c\udf1d Start Location", node_list, index=0)
-end_node = st.selectbox("\ud83d\udccd Target Location", node_list, index=1)
+start_node = st.selectbox("🏁 Start Location", node_list, index=0)
+end_node = st.selectbox("🏁 Target Location", node_list, index=1)
 
-with st.expander("\u2699 ACO Parameters Settings"):
+with st.expander("⚙ ACO Parameters Settings"):
     n_ants = st.slider("Number of Ants", 5, 50, 10)
     n_iterations = st.slider("Iterations", 10, 200, 50)
     alpha = st.slider("Alpha (Pheromone Influence)", 0.1, 5.0, 1.0)
@@ -101,42 +97,33 @@ with st.expander("\u2699 ACO Parameters Settings"):
 if st.button("Find Path"):
     best_overall_path = None
     best_overall_cost = float("inf")
-    best_overall_history = []
 
     for i in range(run_multiple):
         seed = 42 + i if seed_option else None
-        best_path, best_cost, cost_history = run_aco(distance_matrix, node_list, start_node, end_node,
+        best_path, best_cost = run_aco(distance_matrix, node_list, start_node, end_node,
             n_ants, n_iterations, alpha, beta, evaporation, pheromone_constant,
             seed=seed, early_stopping=early_stop)
 
         if best_cost < best_overall_cost:
             best_overall_cost = best_cost
             best_overall_path = best_path
-            best_overall_history = cost_history
 
     if best_overall_path:
-        st.success(f"\u2705 Best Path Found: {' \u2192 '.join(best_overall_path)}")
+        st.success(f"✅ Best Path Found: {' → '.join(best_overall_path)}")
         st.markdown(f"*Total Distance:* {best_overall_cost} km")
 
-        with st.expander("\ud83d\udccf Path Breakdown"):
+        # Optional: breakdown
+        with st.expander("📏 Path Breakdown"):
             total = 0
             for i in range(len(best_overall_path) - 1):
                 a = best_overall_path[i]
                 b = best_overall_path[i + 1]
                 d = distance_matrix.loc[a, b]
                 total += d
-                st.write(f"\u27a1 {a} to {b} = {round(d, 3)} km")
+                st.write(f"➡ {a} to {b} = {round(d, 3)} km")
             st.markdown(f"*Total:* {round(total, 3)} km")
 
-        with st.expander("\ud83d\udcca ACO Convergence Chart"):
-            fig, ax = plt.subplots()
-            ax.plot(best_overall_history)
-            ax.set_xlabel("Iteration")
-            ax.set_ylabel("Best Path Cost (km)")
-            ax.set_title("ACO Convergence Over Iterations")
-            ax.grid(True)
-            st.pyplot(fig)
-
+        # Draw path
         path_coords = [coords_dict[name] for name in best_overall_path]
         line_data = pd.DataFrame({
             "from_lat": [path_coords[i][0] for i in range(len(path_coords)-1)],
@@ -169,4 +156,4 @@ if st.button("Find Path"):
             tooltip={"text": "{name}"}
         ))
     else:
-        st.error("\u274c No valid path was found. Please adjust parameters or try again.")
+        st.error("❌ No valid path was found. Please adjust parameters or try again.")
